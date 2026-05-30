@@ -1,7 +1,8 @@
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAuth } from '../context/AuthContext';
 import { colors } from '../config/theme';
+import StatusBadge from '../components/StatusBadge';
 
 // Screens — Auth
 import LoginScreen from '../screens/LoginScreen';
@@ -15,11 +16,17 @@ import HistoryScreen from '../screens/HistoryScreen';
 
 const Stack = createNativeStackNavigator();
 
-// ─── Opciones de header globales ───────────────────────────────────────────────
-const screenOptions = {
+// ─── Opciones de header base ───────────────────────────────────────────────────
+const baseScreenOptions = {
   headerStyle: { backgroundColor: colors.headerBg },
   headerTintColor: colors.white,
   headerTitleStyle: { fontWeight: 'bold' },
+};
+
+// ─── Opciones de header para pantallas autenticadas (incluye StatusBadge) ─────
+const appScreenOptions = {
+  ...baseScreenOptions,
+  headerRight: () => <StatusBadge />,
 };
 
 export default function AppNavigator() {
@@ -28,14 +35,14 @@ export default function AppNavigator() {
   // Mientras se restaura la sesión desde SecureStore → spinner
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
+      <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
 
   return (
-    <Stack.Navigator screenOptions={screenOptions}>
+    <Stack.Navigator screenOptions={baseScreenOptions}>
       {user === null ? (
         // ── Stack de autenticación ──────────────────────────────────────────
         <>
@@ -56,25 +63,34 @@ export default function AppNavigator() {
           <Stack.Screen
             name="Connection"
             component={ConnectionScreen}
-            options={{ title: 'UniTree — Conexión' }}
+            options={{ ...appScreenOptions, title: 'UniTree — Conexión' }}
           />
           <Stack.Screen
             name="Movement"
             component={MovementScreen}
-            options={{ title: 'Control de movimiento' }}
+            options={{ ...appScreenOptions, title: 'Control de movimiento' }}
           />
           <Stack.Screen
             name="Actions"
             component={ActionsScreen}
-            options={{ title: 'Acciones del robot' }}
+            options={{ ...appScreenOptions, title: 'Acciones del robot' }}
           />
           <Stack.Screen
             name="History"
             component={HistoryScreen}
-            options={{ title: 'Historial de comandos' }}
+            options={{ ...appScreenOptions, title: 'Historial de comandos' }}
           />
         </>
       )}
     </Stack.Navigator>
   );
 }
+
+const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.background,
+  },
+});
