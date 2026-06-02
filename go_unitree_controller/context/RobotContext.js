@@ -43,7 +43,7 @@ export function RobotProvider({ children }) {
   useEffect(() => {
     if (
       statusData !== null &&
-      statusData.connected === false &&
+      statusData.connection_state !== 'connected' &&
       lastConnectParams !== null &&
       !isReconnectingRef.current &&
       !loading
@@ -57,7 +57,7 @@ export function RobotProvider({ children }) {
     try {
       const res = await robotApi.getStatus(token);
       setStatusData(res.data);
-      setIsConnected(res.data?.connected === true);
+      setIsConnected(res.data?.connection_state === 'connected');
     } catch (err) {
       console.error('[RobotContext] Error obteniendo status:', err.message);
     }
@@ -74,7 +74,14 @@ export function RobotProvider({ children }) {
       setIsConnected(true);
       await refreshStatus();
     } catch (err) {
-      const msg = err.response?.data?.detail ?? err.message;
+      const code = err.response?.data?.error;
+      if (code === 'ALREADY_CONNECTED') {
+        setIsConnected(true);
+        setError(null);
+        await refreshStatus();
+        return;
+      }
+      const msg = err.response?.data?.detail ?? err.response?.data?.error ?? err.message;
       setError(msg);
       setIsConnected(false);
     } finally {
