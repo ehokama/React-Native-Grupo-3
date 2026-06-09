@@ -4,7 +4,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -18,10 +17,9 @@ export default function ConnectionScreen({ navigation }) {
   const { connect, disconnect, isConnected, loading, error, statusData, robotType } = useRobot();
 
   const [selectedType, setSelectedType] = useState('go2');
-  const [networkInterface, setNetworkInterface] = useState('eth0');
 
   async function handleConnect() {
-    await connect(selectedType, networkInterface.trim() || 'eth0');
+    await connect(selectedType);
   }
 
   async function handleDisconnect() {
@@ -102,18 +100,6 @@ export default function ConnectionScreen({ navigation }) {
           </Text>
         </TouchableOpacity>
       </View>
-
-      {/* ──────── Interfaz de red ──────── */}
-      <Text style={styles.sectionTitle}>Interfaz de red</Text>
-      <TextInput
-        style={styles.input}
-        value={networkInterface}
-        onChangeText={setNetworkInterface}
-        placeholder="eth0"
-        placeholderTextColor={colors.textSecondary}
-        autoCapitalize="none"
-        autoCorrect={false}
-      />
 
       {/* ──────── Botones de acción ──────── */}
       <TouchableOpacity
@@ -272,18 +258,6 @@ const styles = StyleSheet.create({
   },
   robotButtonTextInactive: {
     color: colors.textSecondary,
-  },
-  // Input
-  input: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: borderRadius.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    fontSize: fontSizes.md,
-    color: colors.text,
-    marginBottom: spacing.sm,
   },
   // Botones principales
   button: {

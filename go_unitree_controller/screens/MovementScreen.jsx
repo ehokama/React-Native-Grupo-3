@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import {
-  ActivityIndicator,
   ScrollView,
   StyleSheet,
   Switch,
@@ -12,7 +11,7 @@ import { useAuth } from '../context/AuthContext';
 import { useRobot } from '../context/RobotContext';
 import { robotApi } from '../services/robotApi';
 import { saveCommandHistory } from '../database';
-import { borderRadius, colors, fontSizes, spacing } from '../config/theme';
+import { borderRadius, colors, DPAD_SPEED, fontSizes, MOVE_SENSITIVITY, spacing } from '../config/theme';
 import VirtualJoystick from '../components/VirtualJoystick';
 
 // F2 — Pantalla de Control de Movimiento
@@ -35,22 +34,22 @@ export default function MovementScreen() {
 
   function showResult(ok, msg) {
     setLastResult({ ok, msg });
-    setTimeout(() => setLastResult(null), 3000);
+    setTimeout(() => setLastResult(null), ok ? 1500 : 3000);
   }
 
-  async function runCommand(label, apiCall, payload = {}) {
-    if (!isConnected || actionLoading) return;
-    setActionLoading(true);
+  async function runCommand(label, apiCall, payload = {}, { silentSuccess = false, blockUi = false } = {}) {
+    if (!isConnected || (blockUi && actionLoading)) return;
+    if (blockUi) setActionLoading(true);
     try {
       await apiCall();
-      showResult(true, `${label} OK`);
+      if (!silentSuccess) showResult(true, label);
       await saveCommandHistory(user?.username, label, payload, true, null);
     } catch (err) {
       const msg = err.response?.data?.detail ?? err.message;
       showResult(false, msg);
       await saveCommandHistory(user?.username, label, payload, false, msg);
     } finally {
-      setActionLoading(false);
+      if (blockUi) setActionLoading(false);
     }
   }
 
@@ -58,7 +57,12 @@ export default function MovementScreen() {
 
   function handleMove(vx, vy, vyaw) {
     if (!isConnected || !token) return;
-    robotApi.move(token, vx, vy, vyaw).catch(() => {});
+    robotApi.move(
+      token,
+      vx * MOVE_SENSITIVITY,
+      vy * MOVE_SENSITIVITY,
+      vyaw * MOVE_SENSITIVITY,
+    ).catch(() => {});
   }
 
   function handleJoystickRelease() {
@@ -67,7 +71,7 @@ export default function MovementScreen() {
   }
 
   async function handleDirection(label, vx, vy, vyaw) {
-    await runCommand(label, () => robotApi.move(token, vx, vy, vyaw), { vx, vy, vyaw });
+    await runCommand(label, () => robotApi.move(token, vx, vy, vyaw), { vx, vy, vyaw }, { silentSuccess: true });
   }
 
   // ─── Handlers de toggles ─────────────────────────────────────────────────
@@ -75,7 +79,12 @@ export default function MovementScreen() {
   async function handleToggle(label, currentVal, setter, apiCall) {
     const newVal = !currentVal;
     setter(newVal);
-    await runCommand(`${label} ${newVal ? 'ON' : 'OFF'}`, () => apiCall(token, newVal), { enable: newVal });
+    await runCommand(
+      `${label} ${newVal ? 'ON' : 'OFF'}`,
+      () => apiCall(token, newVal),
+      { enable: newVal },
+      { silentSuccess: true, blockUi: true },
+    );
   }
 
   // ─── Render ───────────────────────────────────────────────────────────────
@@ -92,32 +101,32 @@ export default function MovementScreen() {
 
   return (
     <View style={styles.screen}>
+      {lastResult && (
+        <View
+          style={[
+            styles.toast,
+            lastResult.ok ? styles.toastOk : styles.toastError,
+          ]}
+          pointerEvents="none"
+        >
+          <Text style={[styles.toastText, lastResult.ok ? styles.toastTextOk : styles.toastTextError]}>
+            {lastResult.ok ? `✓ ${lastResult.msg}` : `✗ ${lastResult.msg}`}
+          </Text>
+        </View>
+      )}
+
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.container}
         keyboardShouldPersistTaps="handled"
       >
 
-      {/* ─── Feedback visual ──────────────────────────────────────────────── */}
-      {lastResult && (
-        <View style={[styles.resultBanner, lastResult.ok ? styles.resultOk : styles.resultError]}>
-          <Text style={styles.resultText}>
-            {lastResult.ok ? '✓ ' : '✗ '}{lastResult.msg}
-          </Text>
-        </View>
-      )}
-
-      {actionLoading && (
-        <ActivityIndicator color={colors.primary} style={styles.loadingIndicator} />
-      )}
-
       {/* ─── Controles direccionales ──────────────────────────────────────── */}
       <Text style={styles.sectionTitle}>Controles direccionales</Text>
       <View style={styles.dpadContainer}>
         <TouchableOpacity
           style={styles.dpadBtn}
-          onPress={() => handleDirection('move_adelante', 0.5, 0, 0)}
-          disabled={actionLoading}
+          onPress={() => handleDirection('move_adelante', DPAD_SPEED, 0, 0)}
           activeOpacity={0.7}
         >
           <Text style={styles.dpadText}>▲</Text>
@@ -126,8 +135,7 @@ export default function MovementScreen() {
         <View style={styles.dpadRow}>
           <TouchableOpacity
             style={styles.dpadBtn}
-            onPress={() => handleDirection('move_izquierda', 0, 0.5, 0)}
-            disabled={actionLoading}
+            onPress={() => handleDirection('move_izquierda', 0, DPAD_SPEED, 0)}
             activeOpacity={0.7}
           >
             <Text style={styles.dpadText}>◄</Text>
@@ -135,8 +143,7 @@ export default function MovementScreen() {
 
           <TouchableOpacity
             style={[styles.dpadBtn, styles.dpadStop]}
-            onPress={() => runCommand('stop', () => robotApi.stop(token))}
-            disabled={actionLoading}
+            onPress={() => runCommand('stop', () => robotApi.stop(token), {}, { silentSuccess: true })}
             activeOpacity={0.7}
           >
             <Text style={styles.dpadStopText}>■</Text>
@@ -144,8 +151,7 @@ export default function MovementScreen() {
 
           <TouchableOpacity
             style={styles.dpadBtn}
-            onPress={() => handleDirection('move_derecha', 0, -0.5, 0)}
-            disabled={actionLoading}
+            onPress={() => handleDirection('move_derecha', 0, -DPAD_SPEED, 0)}
             activeOpacity={0.7}
           >
             <Text style={styles.dpadText}>►</Text>
@@ -154,8 +160,7 @@ export default function MovementScreen() {
 
         <TouchableOpacity
           style={styles.dpadBtn}
-          onPress={() => handleDirection('move_atras', -0.5, 0, 0)}
-          disabled={actionLoading}
+          onPress={() => handleDirection('move_atras', -DPAD_SPEED, 0, 0)}
           activeOpacity={0.7}
         >
           <Text style={styles.dpadText}>▼</Text>
@@ -167,7 +172,7 @@ export default function MovementScreen() {
       <View style={styles.postureRow}>
         <TouchableOpacity
           style={[styles.postureBtn, styles.postureBtnGreen]}
-          onPress={() => runCommand('standup', () => robotApi.standUp(token))}
+          onPress={() => runCommand('Pararse', () => robotApi.standUp(token), {}, { blockUi: true })}
           disabled={actionLoading}
           activeOpacity={0.8}
         >
@@ -175,7 +180,7 @@ export default function MovementScreen() {
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.postureBtn, styles.postureBtnAmber]}
-          onPress={() => runCommand('sitdown', () => robotApi.sitDown(token))}
+          onPress={() => runCommand('Sentarse', () => robotApi.sitDown(token), {}, { blockUi: true })}
           disabled={actionLoading}
           activeOpacity={0.8}
         >
@@ -183,7 +188,7 @@ export default function MovementScreen() {
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.postureBtn, styles.postureBtnRed]}
-          onPress={() => runCommand('damp', () => robotApi.damp(token))}
+          onPress={() => runCommand('Damp', () => robotApi.damp(token), {}, { blockUi: true })}
           disabled={actionLoading}
           activeOpacity={0.8}
         >
@@ -326,26 +331,39 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
     marginBottom: spacing.sm,
   },
-  // Feedback
-  resultBanner: {
-    borderRadius: borderRadius.sm,
-    padding: spacing.sm,
-    marginBottom: spacing.sm,
+  // Feedback (toast flotante, no mueve el layout)
+  toast: {
+    position: 'absolute',
+    top: spacing.sm,
+    left: spacing.md,
+    right: spacing.md,
+    zIndex: 10,
+    borderRadius: borderRadius.full,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.md,
+    alignSelf: 'center',
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.12,
+    shadowRadius: 3,
+    elevation: 3,
   },
-  resultOk: {
-    backgroundColor: '#DCFCE7',
+  toastOk: {
+    backgroundColor: 'rgba(220, 252, 231, 0.95)',
   },
-  resultError: {
-    backgroundColor: '#FEE2E2',
+  toastError: {
+    backgroundColor: 'rgba(254, 226, 226, 0.95)',
   },
-  resultText: {
-    fontSize: fontSizes.sm,
-    color: colors.text,
+  toastText: {
+    fontSize: fontSizes.xs,
     textAlign: 'center',
     fontWeight: '600',
   },
-  loadingIndicator: {
-    marginBottom: spacing.sm,
+  toastTextOk: {
+    color: colors.connected,
+  },
+  toastTextError: {
+    color: colors.error,
   },
   // D-Pad
   dpadContainer: {
