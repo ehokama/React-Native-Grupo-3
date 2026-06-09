@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { PanResponder, StyleSheet, View } from 'react-native';
+import { PanResponder, Platform, StyleSheet, View } from 'react-native';
 import { colors } from '../config/theme';
 
 const OUTER_RADIUS = 75;   // Radio del círculo exterior (px)
@@ -12,15 +12,31 @@ const INNER_SIZE = INNER_RADIUS * 2;
  * Props:
  *   onMove(vx, vy, vyaw) — llamado continuamente mientras se arrastra
  *   onRelease()           — llamado al soltar
+ *   onInteractionStart()  — opcional, al iniciar el gesto
+ *   onInteractionEnd()    — opcional, al soltar o cancelar el gesto
  *   disabled              — deshabilita la interacción
  */
-export default function VirtualJoystick({ onMove, onRelease, disabled = false }) {
+export default function VirtualJoystick({
+  onMove,
+  onRelease,
+  onInteractionStart,
+  onInteractionEnd,
+  disabled = false,
+}) {
   const [innerPos, setInnerPos] = useState({ x: 0, y: 0 });
 
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => !disabled,
       onMoveShouldSetPanResponder: () => !disabled,
+      onStartShouldSetPanResponderCapture: () => !disabled,
+      onMoveShouldSetPanResponderCapture: () => !disabled,
+      onPanResponderTerminationRequest: () => false,
+
+      onPanResponderGrant: () => {
+        if (disabled) return;
+        if (onInteractionStart) onInteractionStart();
+      },
 
       onPanResponderMove: (_, gestureState) => {
         if (disabled) return;
@@ -49,11 +65,13 @@ export default function VirtualJoystick({ onMove, onRelease, disabled = false })
       onPanResponderRelease: () => {
         setInnerPos({ x: 0, y: 0 });
         if (onRelease) onRelease();
+        if (onInteractionEnd) onInteractionEnd();
       },
 
       onPanResponderTerminate: () => {
         setInnerPos({ x: 0, y: 0 });
         if (onRelease) onRelease();
+        if (onInteractionEnd) onInteractionEnd();
       },
     })
   ).current;
@@ -94,6 +112,8 @@ const styles = StyleSheet.create({
     borderColor: colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
+    overflow: 'hidden',
+    ...(Platform.OS === 'web' ? { touchAction: 'none' } : {}),
   },
   outerDisabled: {
     borderColor: colors.border,
