@@ -49,7 +49,6 @@ export default function ActionsScreen() {
   async function executeAction(actionName) {
     if (!isConnected || executingAction) return;
     setExecutingAction(actionName);
-    setLastResult(null);
 
     const timestamp = new Date();
     let ok = false;
@@ -58,7 +57,6 @@ export default function ActionsScreen() {
     try {
       await robotApi.executeAction(token, actionName);
       ok = true;
-      showResult(true, `${actionName} ejecutada`);
     } catch (err) {
       errorMsg = err.response?.data?.detail ?? err.message;
       showResult(false, errorMsg);
@@ -84,7 +82,7 @@ export default function ActionsScreen() {
 
   function showResult(ok, msg) {
     setLastResult({ ok, msg });
-    setTimeout(() => setLastResult(null), 3000);
+    setTimeout(() => setLastResult(null), ok ? 1500 : 3000);
   }
 
   // --- Render ---
@@ -103,17 +101,16 @@ export default function ActionsScreen() {
 
   return (
     <View style={styles.screen}>
-      {/* --- Feedback visual --- */}
       {lastResult && (
         <View
           style={[
-            styles.resultBanner,
-            lastResult.ok ? styles.resultOk : styles.resultError,
+            styles.toast,
+            lastResult.ok ? styles.toastOk : styles.toastError,
           ]}
+          pointerEvents="none"
         >
-          <Text style={styles.resultText}>
-            {lastResult.ok ? "✓ " : "✗ "}
-            {lastResult.msg}
+          <Text style={[styles.toastText, styles.toastTextError]}>
+            ✗ {lastResult.msg}
           </Text>
         </View>
       )}
@@ -140,7 +137,7 @@ export default function ActionsScreen() {
             <ActionButton
               name={item}
               isExecuting={executingAction === item}
-              disabled={executingAction !== null}
+              disabled={executingAction === item}
               onPress={() => executeAction(item)}
             />
           )}
@@ -193,10 +190,7 @@ export default function ActionsScreen() {
 function ActionButton({ name, isExecuting, disabled, onPress }) {
   return (
     <TouchableOpacity
-      style={[
-        styles.actionBtn,
-        disabled && !isExecuting && styles.actionBtnDisabled,
-      ]}
+      style={[styles.actionBtn, isExecuting && styles.actionBtnExecuting]}
       onPress={onPress}
       disabled={disabled}
       activeOpacity={0.75}
@@ -250,19 +244,35 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
     marginBottom: spacing.sm,
   },
-  // Feedback
-  resultBanner: {
-    borderRadius: borderRadius.sm,
-    padding: spacing.sm,
-    marginBottom: spacing.sm,
+  // Feedback (toast flotante, no mueve el layout)
+  toast: {
+    position: "absolute",
+    top: spacing.sm,
+    left: spacing.md,
+    right: spacing.md,
+    zIndex: 10,
+    borderRadius: borderRadius.full,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.md,
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.12,
+    shadowRadius: 3,
+    elevation: 3,
   },
-  resultOk: { backgroundColor: "#DCFCE7" },
-  resultError: { backgroundColor: "#FEE2E2" },
-  resultText: {
-    fontSize: fontSizes.sm,
-    color: colors.text,
+  toastOk: {
+    backgroundColor: "rgba(220, 252, 231, 0.95)",
+  },
+  toastError: {
+    backgroundColor: "rgba(254, 226, 226, 0.95)",
+  },
+  toastText: {
+    fontSize: fontSizes.xs,
     textAlign: "center",
     fontWeight: "600",
+  },
+  toastTextError: {
+    color: colors.error,
   },
   loader: {
     marginTop: spacing.lg,
@@ -284,8 +294,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     minHeight: 52,
   },
-  actionBtnDisabled: {
-    opacity: 0.4,
+  actionBtnExecuting: {
+    opacity: 0.7,
   },
   actionBtnText: {
     color: colors.white,
