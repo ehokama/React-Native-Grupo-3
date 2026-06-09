@@ -91,7 +91,12 @@ export default function MovementScreen() {
   }
 
   return (
-    <ScrollView style={styles.scroll} contentContainerStyle={styles.container}>
+    <View style={styles.screen}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.container}
+        keyboardShouldPersistTaps="handled"
+      >
 
       {/* ─── Feedback visual ──────────────────────────────────────────────── */}
       {lastResult && (
@@ -155,16 +160,6 @@ export default function MovementScreen() {
         >
           <Text style={styles.dpadText}>▼</Text>
         </TouchableOpacity>
-      </View>
-
-      {/* ─── Joystick virtual ────────────────────────────────────────────────── */}
-      <Text style={styles.sectionTitle}>Joystick</Text>
-      <View style={styles.joystickContainer}>
-        <VirtualJoystick
-          onMove={handleMove}
-          onRelease={handleJoystickRelease}
-          disabled={actionLoading}
-        />
       </View>
 
       {/* ─── Posturas ─────────────────────────────────────────────────────── */}
@@ -238,7 +233,19 @@ export default function MovementScreen() {
           />
         )}
       </View>
-    </ScrollView>
+      </ScrollView>
+
+      <View style={styles.joystickDock}>
+        <Text style={styles.joystickTitle}>Joystick</Text>
+        <View style={styles.joystickContainer}>
+          <VirtualJoystick
+            onMove={handleMove}
+            onRelease={handleJoystickRelease}
+            disabled={actionLoading}
+          />
+        </View>
+      </View>
+    </View>
   );
 }
 
@@ -299,13 +306,16 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   // Pantalla principal
-  scroll: {
+  screen: {
     flex: 1,
     backgroundColor: colors.background,
   },
+  scroll: {
+    flex: 1,
+  },
   container: {
     padding: spacing.md,
-    paddingBottom: spacing.xxl,
+    paddingBottom: spacing.lg,
   },
   sectionTitle: {
     fontSize: fontSizes.sm,
@@ -367,10 +377,28 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.md,
     fontWeight: 'bold',
   },
-  // Joystick
+  // Joystick (zona fija, fuera del scroll)
+  joystickDock: {
+    alignItems: 'center',
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.lg,
+    paddingHorizontal: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  joystickTitle: {
+    fontSize: fontSizes.sm,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginBottom: spacing.sm,
+  },
   joystickContainer: {
     alignItems: 'center',
-    paddingVertical: spacing.md,
+    justifyContent: 'center',
+    minHeight: 170,
   },
   // Posturas
   postureRow: {
