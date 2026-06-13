@@ -2,13 +2,36 @@ import { useRef, useState } from 'react';
 import { PanResponder, Platform, StyleSheet, View } from 'react-native';
 import { colors } from '../config/theme';
 
-const OUTER_RADIUS = 75;   // Radio del círculo exterior (px)
-const INNER_RADIUS = 30;   // Radio del mando interior (px)
+const OUTER_RADIUS = 75;
+const INNER_RADIUS = 30;
 const OUTER_SIZE = OUTER_RADIUS * 2;
 const INNER_SIZE = INNER_RADIUS * 2;
 
 /**
- * Joystick virtual con PanResponder.
+ * Deriva vx, vy y vyaw desde la posición 2D del mando.
+ * - Vertical  → vx (adelante / atrás)
+ * - Horizontal → vy (strafe) o vyaw (giro) según inclinación
+ *   · Solo izquierda/derecha → gira en el lugar (vyaw)
+ *   · Diagonal / adelante     → strafe (vy) + algo de giro
+ */
+export function mapStickToVelocity(clampedX, clampedY, maxDist) {
+  const nx = -(clampedX / maxDist);
+  const ny = -(clampedY / maxDist);
+
+  const absX = Math.abs(nx);
+  const absY = Math.abs(ny);
+  const strafeWeight = absY / (absX + absY + 0.0001);
+  const rotateWeight = 1 - strafeWeight;
+
+  return {
+    vx: ny,
+    vy: nx * strafeWeight,
+    vyaw: nx * rotateWeight,
+  };
+}
+
+/**
+ * Joystick virtual con PanResponder — envía vx, vy y vyaw en un solo control.
  * Props:
  *   onMove(vx, vy, vyaw) — llamado continuamente mientras se arrastra
  *   onRelease()           — llamado al soltar
@@ -42,10 +65,9 @@ export default function VirtualJoystick({
         if (disabled) return;
 
         const { dx, dy } = gestureState;
-
-        // Limitar el mando al interior del círculo exterior
-        const distance = Math.sqrt(dx * dx + dy * dy);
         const maxDist = OUTER_RADIUS - INNER_RADIUS;
+
+        const distance = Math.sqrt(dx * dx + dy * dy);
         const clampedDist = Math.min(distance, maxDist);
         const angle = Math.atan2(dy, dx);
 
@@ -54,11 +76,7 @@ export default function VirtualJoystick({
 
         setInnerPos({ x: clampedX, y: clampedY });
 
-        // Normalizar a [-1, 1]
-        const vx = -(clampedY / maxDist);  // hacia adelante = dy negativo = vx positivo
-        const vy = -(clampedX / maxDist);  // izquierda = dx negativo = vy positivo
-        const vyaw = 0;
-
+        const { vx, vy, vyaw } = mapStickToVelocity(clampedX, clampedY, maxDist);
         if (onMove) onMove(vx, vy, vyaw);
       },
 
@@ -81,11 +99,9 @@ export default function VirtualJoystick({
       style={[styles.outer, disabled && styles.outerDisabled]}
       {...panResponder.panHandlers}
     >
-      {/* Líneas guía */}
       <View style={styles.guideH} />
       <View style={styles.guideV} />
 
-      {/* Mando interior */}
       <View
         style={[
           styles.inner,
