@@ -11,7 +11,7 @@ import { useAuth } from '../context/AuthContext';
 import { useRobot } from '../context/RobotContext';
 import { robotApi } from '../services/robotApi';
 import { saveCommandHistory } from '../database';
-import { borderRadius, colors, DPAD_SPEED, fontSizes, MOVE_SENSITIVITY, spacing } from '../config/theme';
+import { borderRadius, colors, DPAD_SPEED, fontSizes, MOVE_SENSITIVITY, spacing, YAW_SENSITIVITY, YAW_SPEED } from '../config/theme';
 import VirtualJoystick from '../components/VirtualJoystick';
 
 // F2 — Pantalla de Control de Movimiento
@@ -53,7 +53,7 @@ export default function MovementScreen() {
     }
   }
 
-  // ─── Handlers de movimiento ───────────────────────────────────────────────
+  // ─── Handlers de movimiento (joystick único: vx, vy, vyaw) ───────────────
 
   function handleMove(vx, vy, vyaw) {
     if (!isConnected || !token) return;
@@ -61,7 +61,7 @@ export default function MovementScreen() {
       token,
       vx * MOVE_SENSITIVITY,
       vy * MOVE_SENSITIVITY,
-      vyaw * MOVE_SENSITIVITY,
+      vyaw * YAW_SENSITIVITY,
     ).catch(() => {});
   }
 
@@ -124,13 +124,31 @@ export default function MovementScreen() {
       {/* ─── Controles direccionales ──────────────────────────────────────── */}
       <Text style={styles.sectionTitle}>Controles direccionales</Text>
       <View style={styles.dpadContainer}>
-        <TouchableOpacity
-          style={styles.dpadBtn}
-          onPress={() => handleDirection('move_adelante', DPAD_SPEED, 0, 0)}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.dpadText}>▲</Text>
-        </TouchableOpacity>
+        <View style={styles.dpadBlock}>
+          <TouchableOpacity
+            style={[styles.dpadBtn, styles.dpadBtnYaw]}
+            onPress={() => handleDirection('giro_izquierda', 0, 0, YAW_SPEED)}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.dpadText}>↺</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.dpadBtn}
+            onPress={() => handleDirection('move_adelante', DPAD_SPEED, 0, 0)}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.dpadText}>▲</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.dpadBtn, styles.dpadBtnYaw]}
+            onPress={() => handleDirection('giro_derecha', 0, 0, -YAW_SPEED)}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.dpadText}>↻</Text>
+          </TouchableOpacity>
+        </View>
 
         <View style={styles.dpadRow}>
           <TouchableOpacity
@@ -165,6 +183,11 @@ export default function MovementScreen() {
         >
           <Text style={styles.dpadText}>▼</Text>
         </TouchableOpacity>
+
+        <View style={styles.dpadLegend}>
+          <Text style={styles.dpadLegendText}>↺↻ Giro (vyaw)</Text>
+          <Text style={styles.dpadLegendText}>◄► Strafe (vy)</Text>
+        </View>
       </View>
 
       {/* ─── Posturas ─────────────────────────────────────────────────────── */}
@@ -242,6 +265,7 @@ export default function MovementScreen() {
 
       <View style={styles.joystickDock}>
         <Text style={styles.joystickTitle}>Joystick</Text>
+        <Text style={styles.joystickHint}>↑↓ vx · ↔ vy / vyaw</Text>
         <View style={styles.joystickContainer}>
           <VirtualJoystick
             onMove={handleMove}
@@ -370,6 +394,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.xs,
   },
+  dpadBlock: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+    alignItems: 'center',
+  },
   dpadRow: {
     flexDirection: 'row',
     gap: spacing.xs,
@@ -383,6 +412,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  dpadBtnYaw: {
+    backgroundColor: colors.connecting,
+  },
   dpadStop: {
     backgroundColor: colors.error,
   },
@@ -394,6 +426,15 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontSize: fontSizes.md,
     fontWeight: 'bold',
+  },
+  dpadLegend: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    marginTop: spacing.xs,
+  },
+  dpadLegendText: {
+    fontSize: fontSizes.xs,
+    color: colors.textSecondary,
   },
   // Joystick (zona fija, fuera del scroll)
   joystickDock: {
@@ -411,7 +452,13 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 0.8,
+    marginBottom: spacing.xs,
+  },
+  joystickHint: {
+    fontSize: fontSizes.xs,
+    color: colors.textSecondary,
     marginBottom: spacing.sm,
+    letterSpacing: 0.5,
   },
   joystickContainer: {
     alignItems: 'center',

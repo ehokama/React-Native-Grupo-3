@@ -66,7 +66,12 @@ export const borderRadius = {
 // URL base de la API (Railway deploy / local dev)
 export const API_BASE_URL = 'http://localhost:8000';
 
-// Velocidad de movimiento (vx/vy enviados al backend, rango efectivo ±1)
+// Velocidad lineal (vx/vy enviados al backend, rango efectivo ±1)
 export const DPAD_BASE_SPEED = 0.5;
 export const MOVE_SENSITIVITY = 0.75; // 25% más lento que la base
 export const DPAD_SPEED = DPAD_BASE_SPEED * MOVE_SENSITIVITY;
+
+// Velocidad angular (vyaw, rad/s efectivo — misma estructura que vx/vy)
+export const YAW_BASE_SPEED = 0.5;
+export const YAW_SENSITIVITY = 0.75;
+export const YAW_SPEED = YAW_BASE_SPEED * YAW_SENSITIVITY;
